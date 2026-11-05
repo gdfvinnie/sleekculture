@@ -16,11 +16,12 @@ const INFO_LINKS = [
   { to: "/size-guide", label: "Size Guide" },
   { to: "/faq", label: "FAQ" }
 ];
+const LOGO_SRC = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/sleekculture-logo.png`;
 export function Footer() {
   return <footer className="border-t border-border bg-background"><div className="grid grid-cols-1 gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-10">{
     /* Brand */
   }<div><Link to="/" aria-label="sleekculture — home"><img
-    src="/sleekculture-logo.png"
+    src={LOGO_SRC}
     alt="sleekculture"
     className="h-9 w-32 object-cover object-center mix-blend-multiply"
   /></Link><p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">

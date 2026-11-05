@@ -10,7 +10,7 @@ export function HeroSlider() {
           comfortable banner ratio instead of forcing a full viewport. */}
       <div className="relative h-[52vh] min-h-[320px] w-full overflow-hidden bg-white sm:h-[60vh] lg:h-[68vh]">
         <img
-          src={`${import.meta.env.BASE_URL}hero-banner.jpeg`}
+          src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/hero-banner.jpeg`}
           alt="sleekculture — graffiti logo on white brick"
           className="h-full w-full object-cover"
           fetchPriority="high"

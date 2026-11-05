@@ -28,6 +28,8 @@ export function DropletIcon({ className }) {
     </svg>
   );
 }
+/* Base-aware asset URL — works on any host (root or GitHub Pages sub-path). */
+const LOGO_SRC = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/sleekculture-logo.png`;
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -65,7 +67,7 @@ export function Navbar() {
     aria-label="sleekculture — home"
     className="transition-opacity hover:opacity-70"
   ><img
-    src="/sleekculture-logo.png"
+    src={LOGO_SRC}
     alt="sleekculture"
     className="h-9 w-32 object-cover object-center transition-all mix-blend-multiply sm:h-10 sm:w-40"
   /></Link>{

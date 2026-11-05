@@ -18,6 +18,7 @@ const panelMotion = {
   exit: { x: "-100%" },
   transition: { type: "spring", stiffness: 320, damping: 34 }
 };
+const LOGO_SRC = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/sleekculture-logo.png`;
 export function Sidebar({ open, onOpenChange }) {
   const [collectionsOpen, setCollectionsOpen] = useState(true);
   const [accessoriesOpen, setAccessoriesOpen] = useState(true);
@@ -48,7 +49,7 @@ export function Sidebar({ open, onOpenChange }) {
   >{
     /* Header */
   }<div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5 sm:px-7"><img
-    src="/sleekculture-logo.png"
+    src={LOGO_SRC}
     alt="sleekculture"
     className="h-8 w-28 object-cover object-center mix-blend-multiply"
   /><button
