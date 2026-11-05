@@ -1,0 +1,21 @@
+# sleekculture — Netlify configuration
+#
+# Deploy the prebuilt/static frontend automatically from the repo.
+# (Or drag the `frontend/dist` folder onto app.netlify.com/drop.)
+#
+# The app uses hash routing (#/shop), so no SPA rewrites are needed.
+# NOTE: static Netlify hosting runs the store in demo mode (no Python backend:
+# products + cart + checkout work, orders live in the browser, admin/uploads
+# are disabled). For full store features pair this with the backend — see SETUP.md.
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+# Keep /api/* from being "helpfully" rewritten to the SPA by any user rule —
+# the storefront uses its absence to enable the safe demo fallback.
+[[redirects]]
+  from = "/api/*"
+  to = "/404"
+  status = 404

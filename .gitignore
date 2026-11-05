@@ -1,0 +1,29 @@
+# Environment / secrets
+.env
+
+# Persistent datastore (SQLite + uploads) — back this up, never commit it
+data/
+
+# Freebuff local runtime artifacts (not part of the app)
+.freebuff/
+
+# Build artifact (regenerate with scripts/ + SETUP.md instructions)
+sleekculture-deploy.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/*.local
+
+# Legacy Node stack (kept for reference)
+legacy/node_modules/
+legacy/dist/
+
+# Logs
+*.log

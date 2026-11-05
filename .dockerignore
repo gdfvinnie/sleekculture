@@ -1,0 +1,12 @@
+node_modules
+dist
+data
+dev.log
+*.log
+.env
+.env.local
+.git
+.gitignore
+Dockerfile
+.dockerignore
+sleekculture-website.zip

@@ -1,0 +1,5 @@
+/api/* / 404
+
+# sleekculture uses hash routing (#/shop): drag-and-drop of the `dist`
+# folder already serves index.html at the root, and every in-app link is
+# hash-based, so no extra SPA rewrite is needed here.
