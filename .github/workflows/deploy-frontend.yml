@@ -42,8 +42,10 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}
 
-      - name: Configure Pages
+      - name: Configure Pages (creates the site on first deploy)
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
