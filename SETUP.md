@@ -58,12 +58,45 @@ The frontend auto-detects that no backend exists and switches to **demo mode**:
 2. **Root Directory:** `frontend` (Vercel reads `frontend/vercel.json`).
 3. Framework preset: Vite; it builds `npm run build` → `dist`.
 
-### GitHub Pages (project site `/<repo-name>/`)
+### GitHub Pages
 1. Push this repo to GitHub; keep the workflow file `.github/workflows/deploy-frontend.yml`.
 2. Settings → Pages → **Source: GitHub Actions**.
-3. Every push to `main` builds the frontend with the correct asset base path and publishes it.
+3. Every push to `main` builds the frontend and publishes it.
 4. Deep links are converted on the fly (404.html → `/#/shop`), so shared links work.
-5. Prefer `<user>.github.io` root or a custom domain? Remove `BASE_PATH` from the workflow build step.
+
+The workflow build is set up for a **custom domain** (site served from `/`), and
+`frontend/public/CNAME` pins the domain in the published artifact.
+
+#### Custom domain (`sleekculture.ng`)
+
+Already configured in the repo. The only manual step is DNS, at the registrar
+holding the domain (hosting.com → your domain → **DNS / Manage DNS**):
+
+1. **Delete any existing `A` or `CNAME` record on the apex (`@`)** that points at
+   hosting.com's parking/website server — otherwise it wins over these.
+2. Add these four `A` records for the apex host `@`:
+
+   | Type | Host | Value |
+   |---|---|---|
+   | A | `@` | `185.199.108.153` |
+   | A | `@` | `185.199.109.153` |
+   | A | `@` | `185.199.110.153` |
+   | A | `@` | `185.199.111.153` |
+
+3. Add the `www` alias:
+
+   | Type | Host | Value |
+   |---|---|---|
+   | CNAME | `www` | `gdfvinnie.github.io` |
+
+4. In GitHub: Settings → Pages → **Custom domain** → `sleekculture.ng` → Save,
+   then tick **Enforce HTTPS** once the certificate is issued (usually minutes).
+5. Check propagation: `nslookup sleekculture.ng` should return the four GitHub
+   IPs above. DNS changes can take up to an hour.
+
+Using a different domain or the `<user>.github.io/<repo>/` project URL instead?
+Replace the contents of `frontend/public/CNAME` (delete the file for the project
+URL) and set the build's `BASE_PATH` to `/<repo-name>` in the workflow.
 
 ### Keeping the demo catalog fresh
 The static build ships a snapshot of your live catalog (`frontend/src/data/catalog.json` + `frontend/public/media`). After changing products in the admin panel of the full-stacked site:
@@ -89,11 +122,12 @@ Then redeploy/update the static host.
 | `PAYSTACK_SECRET_KEY` | backend | Enables real server-side payment verification at checkout |
 | `EXA_API_KEY` | backend | Optional Exa key for web search (`POST /api/search/web`, admin-only) |
 | `PORT` | backend | Listen port (default 3001) |
-| `BASE_PATH` | frontend build | Sub-path base for GitHub Pages (`/<repo-name>`) |
+| `BASE_PATH` | frontend build | Asset base. Leave unset for a custom domain or root host; `/<repo-name>` for a GitHub Pages project URL |
 
 ## Common pitfalls
 
 - **Serving only the frontend for a "real" store** — static hosts cannot run Flask. That's fine (demo mode is graceful), but pairs badly with real payments. Use Option A for production commerce.
 - **SQLite needs persistence** — on PaaS platforms mount a volume at `data/` (see `Dockerfile` and Option A).
-- **GitHub Pages subpath** — always build with `BASE_PATH=/<repo-name>`; otherwise assets 404.
+- **GitHub Pages asset paths** — the build base must match where the site is served: unset for a custom domain / root host, `BASE_PATH=/<repo-name>` for a project URL. A mismatch 404s every JS/CSS/image URL.
+- **Custom domain still showing the old host** — an apex `A` record left over from the registrar's parking page overrides GitHub's; delete it before adding the four GitHub Pages `A` records.
 - **Admin panel blank on static deploys** — expected; attach the backend (Option A) to restore it.
