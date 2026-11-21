@@ -33,13 +33,17 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      # Served from a custom apex domain (see frontend/public/CNAME), so the
-      # site lives at "/" — build with the default base. If you ever go back
-      # to the <user>.github.io/<repo>/ project URL, set BASE_PATH to
-      # /${{ github.event.repository.name }} here instead.
+      # Pages *project* sites are served from /<repo-name>/ — build with the
+      # matching base so all asset URLs resolve.
+      #
+      # Served from a custom domain instead? Delete frontend/public/CNAME, set
+      # the custom domain in Settings → Pages, and remove the BASE_PATH env
+      # below (the site then lives at "/").
       - name: Build
         working-directory: frontend
         run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Configure Pages (creates the site on first deploy)
         uses: actions/configure-pages@v5
