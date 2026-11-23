@@ -15,7 +15,10 @@ import { fileURLToPath } from "node:url";
 // Dev server: API calls (/api) are proxied to the Python backend on 3001.
 export default defineConfig({
   plugins: [react()],
-  base: process.env.BASE_PATH || "/",
+  // Vite's base must end with a slash: template tokens such as
+  // %BASE_URL%sleekculture-logo.png would otherwise produce
+  // "/repo" + "logo.png" => "/repologo.png" (broken favicon/og:image).
+  base: `${(process.env.BASE_PATH || "/").replace(/\/*$/, "")}/`,
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
