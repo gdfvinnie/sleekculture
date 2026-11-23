@@ -621,6 +621,10 @@ function SettingsTab() {
         <div><Label htmlFor="st-phone">Support phone</Label><Input id="st-phone" value={form.supportPhone} onChange={(e) => set("supportPhone", e.target.value)} className="mt-1.5" /></div>
         <div><Label htmlFor="st-free">Free shipping over ($)</Label><Input id="st-free" type="number" min="0" step="0.01" value={form.freeShippingThreshold} onChange={(e) => set("freeShippingThreshold", e.target.value)} className="mt-1.5" /></div>
         <div><Label htmlFor="st-fee">Shipping fee ($)</Label><Input id="st-fee" type="number" min="0" step="0.01" value={form.shippingFee} onChange={(e) => set("shippingFee", e.target.value)} className="mt-1.5" /></div>
+        <div className="sm:col-span-2"><p className="mt-2 text-xs text-muted-foreground">Shown on the storefront banner, at checkout and on the order confirmation.</p></div>
+        <div><Label htmlFor="st-bank">Bank name</Label><Input id="st-bank" value={form.bankName ?? ""} onChange={(e) => set("bankName", e.target.value)} placeholder="e.g. GTBank" className="mt-1.5" /></div>
+        <div><Label htmlFor="st-acct-name">Account name</Label><Input id="st-acct-name" value={form.bankAccountName ?? ""} onChange={(e) => set("bankAccountName", e.target.value)} className="mt-1.5" /></div>
+        <div className="sm:col-span-2"><Label htmlFor="st-acct-no">Account number</Label><Input id="st-acct-no" value={form.bankAccountNumber ?? ""} onChange={(e) => set("bankAccountNumber", e.target.value)} placeholder="Leave empty to ask customers to contact you" className="mt-1.5" /></div>
         {message && <p className={`sm:col-span-2 px-3 py-2 text-sm ${message.ok ? "border border-emerald-300/40 bg-emerald-50 text-emerald-800" : "border border-destructive/30 bg-destructive/5 text-destructive"}`}>{message.text}</p>}
         <div className="sm:col-span-2"><Button type="submit" disabled={saving}>{saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</> : "Save store settings"}</Button></div>
       </form>

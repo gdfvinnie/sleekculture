@@ -178,12 +178,15 @@ def logout():
 
 @customer_auth.get("/api/account/me")
 def me():
+    # This is a session probe called on every page load. Answer 200 with
+    # {"user": null} for guests so the browser console stays clean (a 401 for
+    # an anonymous visitor is not an error, but browsers log it as one).
     token = request.cookies.get(COOKIE_NAME)
     if not token:
-        return jsonify({"error": "Not signed in."}), 401
+        return jsonify({"user": None})
     row = resolve_user()
     if row is None:
-        return jsonify({"error": "Session expired."}), 401
+        return jsonify({"user": None})
     return jsonify(
         {"user": {"email": row["email"], "name": row["name"], "memberSince": row["created_at"]}}
     )

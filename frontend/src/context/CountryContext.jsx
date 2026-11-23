@@ -21,12 +21,15 @@ export function CountryProvider({ children }) {
     const next = COUNTRIES.find((c) => c.code === code);
     if (next) setCountryState(next);
   };
+  /* The store prices and charges in USD only, so prices are always shown in
+     USD. Swapping the currency symbol without converting the amount (the old
+     behaviour) displayed "\u20a675" for a $75 item, which is simply wrong.
+     Country selection now sets the delivery destination instead. */
   const formatPrice = (amount) => {
-    const noDecimals = country.code === "JP" || country.code === "KR";
-    const rounded = noDecimals ? Math.round(amount) : amount;
-    return `${country.symbol}${rounded.toLocaleString(void 0, {
-      minimumFractionDigits: noDecimals ? 0 : 2,
-      maximumFractionDigits: noDecimals ? 0 : 2
+    const value = Number(amount) || 0;
+    return `$${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     })}`;
   };
   return <CountryContext.Provider value={{ country, setCountry, formatPrice }}>{children}</CountryContext.Provider>;

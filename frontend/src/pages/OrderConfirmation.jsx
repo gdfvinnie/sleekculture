@@ -14,6 +14,14 @@ export default function OrderConfirmation() {
   const { formatPrice } = useCountry();
   const [order, setOrder] = useState(state?.order ?? null);
   const [failed, setFailed] = useState(false);
+  const [config, setConfig] = useState(null);
+  useEffect(() => {
+    api
+      .storeConfig()
+      .then(setConfig)
+      .catch(() => {
+      });
+  }, []);
   useEffect(() => {
     if (order || !orderId) return;
     // Deep-linked or refreshed: fetch by id (without email, shipping is hidden).
@@ -85,12 +93,63 @@ export default function OrderConfirmation() {
           {!paid && order.paymentMethod === "bank_transfer" && (
             <div className="mt-8 border border-border bg-secondary/40 p-5 text-sm">
               <p className="font-display tracking-widest">BANK TRANSFER</p>
-              <p className="mt-2 text-muted-foreground">
-                Transfer <span className="font-semibold text-foreground">{formatPrice(order.total)}</span> to
-                the sleekculture account. Account details have been sent to{" "}
-                <span className="font-semibold text-foreground">{order.shipping?.email || "your email"}</span>.
-                Your order ships as soon as payment is confirmed.
-              </p>
+              {config?.bankDetails?.accountNumber ? (
+                <div className="mt-3 space-y-1 text-muted-foreground">
+                  <p>
+                    Transfer{" "}
+                    <span className="font-semibold text-foreground">{formatPrice(order.total)}</span>{" "}
+                    to the account below, then send us the receipt with your order number.
+                  </p>
+                  <dl className="mt-3 space-y-1 border-t border-border pt-3">
+                    {config.bankDetails.bankName && (
+                      <div className="flex justify-between gap-4">
+                        <dt>Bank</dt>
+                        <dd className="text-right font-semibold text-foreground">
+                          {config.bankDetails.bankName}
+                        </dd>
+                      </div>
+                    )}
+                    {config.bankDetails.accountName && (
+                      <div className="flex justify-between gap-4">
+                        <dt>Account name</dt>
+                        <dd className="text-right font-semibold text-foreground">
+                          {config.bankDetails.accountName}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-4">
+                      <dt>Account number</dt>
+                      <dd className="text-right font-semibold text-foreground">
+                        {config.bankDetails.accountNumber}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <dt>Amount</dt>
+                      <dd className="text-right font-semibold text-foreground">
+                        {formatPrice(order.total)}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              ) : (
+                <p className="mt-2 text-muted-foreground">
+                  Your order is reserved. To pay{" "}
+                  <span className="font-semibold text-foreground">{formatPrice(order.total)}</span> by
+                  transfer, contact us at{" "}
+                  <a
+                    href={`mailto:${config?.supportEmail || "jnrvinnie@gmail.com"}?subject=${encodeURIComponent(
+                      `Bank transfer for order ${order.orderNumber}`
+                    )}`}
+                    className="font-semibold text-foreground underline underline-offset-4"
+                  >
+                    {config?.supportEmail || "jnrvinnie@gmail.com"}
+                  </a>{" "}
+                  with order number{" "}
+                  <span className="font-semibold text-foreground">{order.orderNumber}</span> and we
+                  will send the account details right away. Your order ships as soon as payment is
+                  confirmed.
+                </p>
+              )}
             </div>
           )}
           {!paid && order.paymentMethod === "pay_on_delivery" && (

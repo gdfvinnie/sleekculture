@@ -20,7 +20,8 @@ from admin_auth import admin_auth
 from analytics import analytics_bp
 from customer_auth import customer_auth
 from customer_session_guard import attach_bp
-from database import PROJECT_ROOT, close_db, init_db
+from database import PROJECT_ROOT, close_db, get_db, init_db, load_settings
+from orders import payments_configured
 from orders import orders_bp
 from products import products_bp
 from uploads import uploads_bp
@@ -66,6 +67,70 @@ def create_app() -> Flask:
     app.register_blueprint(web_search_bp)
     app.register_blueprint(attach_bp)
 
+    # ---------------- Public store config --------------------------------
+    # The storefront quotes shipping from the same settings the server uses,
+    # and hides card payment until a payment provider is actually connected.
+
+    @app.get("/api/store/config")
+    def store_config():
+        settings = load_settings(get_db())
+        return jsonify(
+            {
+                "storeName": settings.get("storeName"),
+                "supportEmail": settings.get("supportEmail"),
+                "supportPhone": settings.get("supportPhone"),
+                "freeShippingThreshold": settings.get("freeShippingThreshold"),
+                "shippingFee": settings.get("shippingFee"),
+                "paymentsConfigured": payments_configured(),
+                "bankDetails": {
+                    "bankName": settings.get("bankName") or "",
+                    "accountName": settings.get("bankAccountName") or "",
+                    "accountNumber": settings.get("bankAccountNumber") or "",
+                },
+            }
+        )
+
+    # ---------------- Newsletter -----------------------------------------
+
+    @app.post("/api/newsletter")
+    def newsletter_signup():
+        import re as _re
+
+        body = request.get_json(silent=True) or {}
+        email = body.get("email")
+        email = email.strip().lower() if isinstance(email, str) else ""
+        if not _re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$", email) or len(email) > 254:
+            return jsonify({"error": "Enter a valid email address."}), 400
+        db = get_db()
+        try:
+            db.execute(
+                "INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)",
+                (email,),
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            return jsonify({"ok": True})
+        return jsonify({"ok": True}), 201
+
+    # ---------------- Security headers -----------------------------------
+
+    @app.after_request
+    def security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault(
+            "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+        )
+        if os.environ.get("COOKIE_SECURE", "").strip().lower() in ("1", "true", "yes", "on"):
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+        if request.path.startswith("/api/"):
+            response.headers.setdefault("Cache-Control", "no-store")
+        return response
+
     # ---------------- JSON error responses (like the old backend) --------
 
     @app.errorhandler(RequestEntityTooLarge)
@@ -104,6 +169,12 @@ def create_app() -> Flask:
                 and os.path.isfile(candidate)
             ):
                 return send_from_directory(FRONTEND_DIST, path)
+            # Real files crawlers expect (robots.txt, sitemap.xml, 404.html)
+            # must 404 when absent instead of returning index.html as HTML.
+            if path and os.path.splitext(path)[1] in (
+                ".txt", ".xml", ".ico", ".json", ".webmanifest",
+            ):
+                return jsonify({"error": "Not found."}), 404
             return send_from_directory(FRONTEND_DIST, "index.html")
 
     return app

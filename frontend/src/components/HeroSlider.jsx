@@ -13,7 +13,8 @@ export function HeroSlider() {
           src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/hero-banner.jpeg`}
           alt="sleekculture — graffiti logo on white brick"
           className="h-full w-full object-cover"
-          fetchPriority="high"
+          fetchpriority="high"
+          decoding="async"
         />
       </div>
       {/* CTA — centered directly below the banner */}

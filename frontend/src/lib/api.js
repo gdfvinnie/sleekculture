@@ -153,7 +153,7 @@ function makeDemoOrder(payload) {
     Object.entries(rawShipping).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 300) : v])
   );
   const subtotal = Math.round(items.reduce((s, i) => s + i.price * i.quantity, 0) * 100) / 100;
-  const shippingFee = subtotal >= 500 ? 0 : 25;
+  const shippingFee = subtotal >= 150 ? 0 : 25;
   const order = {
     id: `demo-${Date.now()}-${Math.floor(Math.random() * 46656).toString(36)}`,
     orderNumber:
@@ -199,6 +199,29 @@ export const api = {
   me: async () => {
     if (await isDemo()) throw offlineError();
     return request("/api/auth/me");
+  },
+
+  /* ---------------- Store config (shipping, payment availability) ------- */
+  storeConfig: async () => {
+    if (await isDemo()) {
+      return {
+        storeName: "sleekculture",
+        supportEmail: "jnrvinnie@gmail.com",
+        supportPhone: "+234 8169282171",
+        freeShippingThreshold: 150,
+        shippingFee: 25,
+        paymentsConfigured: false,
+        bankDetails: { bankName: "", accountName: "", accountNumber: "" },
+      };
+    }
+    return request("/api/store/config");
+  },
+  newsletter: async (email) => {
+    if (await isDemo()) throw offlineError();
+    return request("/api/newsletter", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
   },
 
   /* ---------------- Products ---------------- */

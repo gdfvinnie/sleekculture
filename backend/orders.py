@@ -24,7 +24,8 @@ import urllib.error
 from flask import Blueprint, jsonify, request
 
 from admin_auth import require_admin
-from database import get_db, row_to_product, utc_now
+from customer_auth import resolve_user
+from database import get_db, load_settings, row_to_product, utc_now
 
 orders_bp = Blueprint("orders", __name__)
 
@@ -41,10 +42,24 @@ PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY", "")
 PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/"
 
 
-def _paystack_verify(reference: str):
-    """Return (ok, message) for a Paystack transaction reference."""
+def payments_configured() -> bool:
+    """True only when a Paystack secret key is present."""
+    return bool(PAYSTACK_SECRET_KEY)
+
+
+def _paystack_verify(reference: str, expected_minor: int, expected_currency: str):
+    """
+    Return (ok, message) for a Paystack transaction reference.
+
+    The amount and currency are checked against the *server-side* order total,
+    so a customer cannot pay ₦1 and have a ₦175,000 order marked paid.
+    Returns (False, reason) when Paystack is not configured — callers must not
+    treat "not configured" as success.
+    """
     if not PAYSTACK_SECRET_KEY:
-        return True, ""
+        return False, "Card payments are not configured yet."
+    if not reference:
+        return False, "Missing payment reference."
     req = urllib.request.Request(
         PAYSTACK_VERIFY_URL + urllib.parse.quote(reference),
         headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"},
@@ -57,14 +72,25 @@ def _paystack_verify(reference: str):
     data = payload.get("data") or {}
     if not payload.get("status") or data.get("status") != "success":
         return False, data.get("gateway_response") or "Payment was not successful."
+    paid_minor = data.get("amount")
+    currency = (data.get("currency") or "").upper()
+    if paid_minor is not None and int(paid_minor) < expected_minor:
+        return False, "The amount paid does not match the order total."
+    if currency and currency != expected_currency.upper():
+        return False, "The payment currency does not match the order."
     return True, ""
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
 
 PAYMENT_STATUSES = ("pending", "paid", "succeeded")
 
-# Temporary sanity catalog used only when a product row has no sizes listed.
-SANE_SIZES = ["S", "M", "L", "XL", "XXL", "One Size", "28", "30", "32", "34"]
+
+def _positive_int(value, default: int, maximum: int) -> int:
+    """Parse a query-string int without ever raising (bad input → default)."""
+    try:
+        return max(1, min(maximum, int(value)))
+    except (TypeError, ValueError):
+        return default
 
 
 def minor(amount) -> int:
@@ -196,13 +222,26 @@ def place_order():
             product["sizes"][0] if product["sizes"] else "One Size"
         )
         if product["sizes"] and size not in product["sizes"]:
-            alt = [s for s in product["sizes"] if s in SANE_SIZES]
-            size = alt[0] if alt else size
+            # Never silently swap in a different size — the customer would
+            # receive the wrong garment. Reject and tell them to re-pick.
+            errors.append(
+                {
+                    "field": "items",
+                    "message": f"Choose a valid size for {product['name']}.",
+                }
+            )
+            continue
         color = _clean_str(it.get("color"), 40) or (
             product["colors"][0] if product["colors"] else ""
         )
-        if color not in (product["colors"] or []):
-            color = product["colors"][0] if product["colors"] else ""
+        if product["colors"] and color not in product["colors"]:
+            errors.append(
+                {
+                    "field": "items",
+                    "message": f"Choose a valid colour for {product['name']}.",
+                }
+            )
+            continue
         try:
             qty = int(str(it.get("quantity", "1") or "1"))
         except (TypeError, ValueError):
@@ -237,8 +276,18 @@ def place_order():
         return jsonify(payload), 409 if out_of_stock and not errors else 400
 
     subtotal = sum(li["unitPrice"] * li["quantity"] for li in line_items)
-    shipping_fee = 0 if subtotal >= 50000 else 2500
+    # Shipping comes from the same settings the storefront displays, so the
+    # banner, the cart summary and the charged total always agree.
+    settings = load_settings(db)
+    threshold = minor(settings.get("freeShippingThreshold") or 0)
+    fee = minor(settings.get("shippingFee") or 0)
+    shipping_fee = 0 if (threshold and subtotal >= threshold) else fee
     total = subtotal + shipping_fee
+
+    # Signed-in customers get their order attached to their account, which is
+    # what makes "My orders" and the admin customer history work.
+    customer = resolve_user()
+    customer_id = customer["id"] if customer is not None else None
 
     conn_row = db.execute(
         """
@@ -249,7 +298,7 @@ def place_order():
         """,
         (
             generate_order_number(),
-            None,  # linked on the frontend if a customer session exists
+            customer_id,
             "processing",
             json.dumps(line_items),
             json.dumps(ship),
@@ -263,19 +312,34 @@ def place_order():
     )
     db.commit()
 
-    # Decrement stock (atomic, race-safe against overselling across requests).
+    # Decrement stock with a guarded UPDATE: the WHERE clause makes the
+    # check-and-decrement a single atomic step, so two simultaneous checkouts
+    # can never oversell the last item.
+    sold_out = []
     for li in line_items:
-        db.execute(
+        cur = db.execute(
             """
             UPDATE products
-               SET quantity = MAX(quantity - ?, 0),
-                   in_stock = CASE
-                     WHEN quantity - ? <= 0 THEN 0
-                     ELSE in_stock
-                   END
-             WHERE id = ?
+               SET quantity = quantity - ?,
+                   in_stock = CASE WHEN quantity - ? <= 0 THEN 0 ELSE in_stock END
+             WHERE id = ? AND quantity >= ?
             """,
-            (li["quantity"], li["quantity"], li["productId"]),
+            (li["quantity"], li["quantity"], li["productId"], li["quantity"]),
+        )
+        if cur.rowcount == 0:
+            sold_out.append(li["name"])
+    if sold_out:
+        db.execute("DELETE FROM orders WHERE id = ?", (conn_row.lastrowid,))
+        db.commit()
+        return (
+            jsonify(
+                {
+                    "error": "Someone just bought the last of: "
+                    + ", ".join(sold_out)
+                    + ". Please adjust your bag."
+                }
+            ),
+            409,
         )
     db.commit()
 
@@ -285,6 +349,14 @@ def place_order():
 
 @orders_bp.post("/api/orders/<order_id>/verify-payment")
 def verify_payment(order_id):
+    """
+    Confirm a card payment.
+
+    Only card/Paystack orders can be verified here, only against a reference
+    that Paystack itself confirms, for the full server-side total. Offline
+    methods (bank transfer, pay on delivery) are marked paid by an admin after
+    the money actually arrives — a storefront request can never do it.
+    """
     body = request.get_json(silent=True) or {}
     db = get_db()
     row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
@@ -292,35 +364,65 @@ def verify_payment(order_id):
         return jsonify({"error": "Order not found."}), 404
     if row["payment_status"] == "succeeded":
         return jsonify({"verified": True, "order": _order_to_json(row)})
+    if row["payment_status"] == "failed":
+        return jsonify({"verified": False, "error": "This payment failed."}), 402
 
-    # Optional real verification (active when PAYSTACK_SECRET_KEY is set).
+    if row["payment_method"] not in ("card", "paystack"):
+        return (
+            jsonify(
+                {
+                    "verified": False,
+                    "error": "This order is paid offline — we confirm it once payment arrives.",
+                }
+            ),
+            400,
+        )
+
+    if not payments_configured():
+        return (
+            jsonify(
+                {
+                    "verified": False,
+                    "error": "Card payments are not configured yet. Choose bank transfer or pay on delivery.",
+                }
+            ),
+            503,
+        )
+
     reference = _clean_str(body.get("reference"), 100)
-    ok, message = _paystack_verify(reference)
+    ok, message = _paystack_verify(reference, row["total"], "NGN")
     if not ok:
         return jsonify({"verified": False, "error": message}), 402
-    if body.get("status") == "abandoned":
+
+    # A reference can only ever pay one order: a replayed/duplicated payment
+    # notification finds the reference already stored and is treated as paid.
+    taken = db.execute(
+        "SELECT id FROM orders WHERE paystack_reference = ? AND id != ?",
+        (reference, order_id),
+    ).fetchone()
+    if taken is not None:
+        return (
+            jsonify({"verified": False, "error": "That payment was already used for another order."}),
+            409,
+        )
+
+    try:
         db.execute(
-            "UPDATE orders SET payment_status = 'failed' WHERE id = ?", (order_id,)
+            """
+            UPDATE orders
+               SET payment_status = 'succeeded',
+                   status = 'paid',
+                   paid_at = ?,
+                   paystack_reference = ?
+             WHERE id = ?
+               AND payment_status IN ('pending', 'paid')
+            """,
+            (utc_now().isoformat(), reference, order_id),
         )
         db.commit()
-        return jsonify({"verified": False, "order": _order_to_json(row)})
-    if body.get("token") == "fail":
-        return jsonify({"verified": False, "error": "Payment was not completed."})
-    if row["payment_status"] not in PAYMENT_STATUSES:
-        return jsonify({"verified": False, "order": _order_to_json(row)})
-
-    db.execute(
-        """
-        UPDATE orders
-           SET payment_status = 'succeeded',
-               status = 'paid',
-               paid_at = ?
-         WHERE id = ?
-           AND payment_status IN ('pending', 'paid')
-        """,
-        (utc_now().isoformat(), order_id),
-    )
-    db.commit()
+    except Exception:
+        # Unique index on paystack_reference: a duplicate notification lost the race.
+        db.rollback()
     row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     return jsonify({"verified": True, "order": _order_to_json(row)})
 
@@ -366,8 +468,8 @@ def admin_orders_count():
 @require_admin
 def admin_list_orders():
     db = get_db()
-    page = max(1, int(request.args.get("page", 1) or 1))
-    per_page = max(1, min(50, int(request.args.get("per_page", 20) or 20)))
+    page = _positive_int(request.args.get("page"), 1, 100000)
+    per_page = _positive_int(request.args.get("per_page"), 20, 50)
     rows = db.execute(
         "SELECT * FROM orders ORDER BY created_at DESC LIMIT ? OFFSET ?",
         (per_page, (page - 1) * per_page),

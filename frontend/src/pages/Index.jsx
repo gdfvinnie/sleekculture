@@ -41,7 +41,10 @@ const CATEGORIES = [
 export default function Index() {
   const { data: products = [], isLoading } = useProducts();
   const featured = products.slice(0, 4);
-  return <div className="min-h-screen"><Navbar /><HeroSlider /><MarqueeBanner />{
+  return <div className="min-h-screen"><Navbar />{
+    /* The hero is an image carousel, so the page needs a real (screen-reader
+       and search-engine visible) top-level heading without changing the design. */
+  }<h1 className="sr-only">sleekculture — contemporary Lagos streetwear, shipped worldwide</h1><HeroSlider /><MarqueeBanner />{
     /* Featured collection */
   }<section className="px-4 py-14 sm:px-6 sm:py-20 lg:px-10"><motion.div {...fadeUp} className="mb-10 flex items-end justify-between gap-6"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-accent">
               SLEEKCULTURE

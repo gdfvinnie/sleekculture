@@ -23,7 +23,7 @@ Set these in your hosting dashboard (never commit real values — see `.env.exam
 | `COOKIE_SECURE` | production | Set to `1` so session cookies require HTTPS. |
 | `DATA_DIR` | optional | Where SQLite DB + uploads live. Default: `<project>/data`. |
 | `SESSION_TTL_HOURS` / `MAX_LOGIN_ATTEMPTS` / `LOCKOUT_MINUTES` | optional | Sane defaults; rarely changed. |
-| `PAYSTACK_SECRET_KEY` | optional | Enables **real** server-side Paystack verification (Part D). Leave unset to keep dev behavior. |
+| `PAYSTACK_SECRET_KEY` | optional | Turns on card payments with real server-side Paystack verification (Part D). Unset = card hidden, bank transfer + pay-on-delivery only. |
 
 The app loads a project-root `.env` file automatically (real environment
 variables win over `.env` values), so on PythonAnywhere the simplest way to
@@ -193,13 +193,13 @@ waitress-serve --host 0.0.0.0 --port 3001 wsgi:app    # from backend/
 
 ## Part D — Paystack notes
 
-**Card checkout today** (no `PAYSTACK_SECRET_KEY` set): "Card" checkout calls
-`POST /api/orders/<id>/verify-payment`, which currently marks a pending order
-paid locally. That's the pre-existing dev behavior — convenient for testing,
-not a real gateway, and unchanged by this deployment prep unless you set the
-key.
+**Card checkout today** (no `PAYSTACK_SECRET_KEY` set): the storefront hides the
+card option and asks the customer to pay by bank transfer or on delivery. No
+request from a browser can mark any order paid — offline orders stay `pending`
+until an admin confirms the money arrived in Admin → Payments. (Older builds
+marked card orders paid on request; that hole is closed.)
 
-**To enable real server-side verification**:
+**To enable card payments with real server-side verification**:
 
 1. Set `PAYSTACK_SECRET_KEY=sk_live_...` in the environment (PythonAnywhere:
    add the line to the `.env` file, then Reload the web app).

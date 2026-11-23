@@ -20,7 +20,13 @@ import re
 from flask import Blueprint, jsonify, request
 
 from admin_auth import require_admin
-from database import get_db, hash_password, verify_password
+from database import (
+    DEFAULT_SETTINGS,
+    get_db,
+    hash_password,
+    load_settings,
+    verify_password,
+)
 
 analytics_bp = Blueprint("analytics", __name__)
 
@@ -63,28 +69,12 @@ def _parse_date(value):
         return None
 
 
-# ---------------------------------------------------------------- Defaults
-
-DEFAULT_SETTINGS = {
-    "storeName": "sleekculture",
-    "supportEmail": "jnrvinnie@gmail.com",
-    "supportPhone": "+234 8169282171",
-    "freeShippingThreshold": 150,
-    "shippingFee": 25,
-}
+# ---------------------------------------------------------------- Settings
 
 
 def _load_settings(db) -> dict:
-    rows = db.execute("SELECT key, value FROM admin_settings").fetchall()
-    stored = {r["key"]: r["value"] for r in rows}
-    out = dict(DEFAULT_SETTINGS)
-    for k in out:
-        if k in stored:
-            try:
-                out[k] = json.loads(stored[k])
-            except (ValueError, TypeError):
-                out[k] = stored[k]
-    return out
+    """Settings live in database.load_settings so orders quote the same fees."""
+    return load_settings(db)
 
 
 # ---------------------------------------------------------------- Dashboard
@@ -286,10 +276,35 @@ def admin_update_order(order_id):
     if payment_status and payment_status not in PAYMENT_STATUSES:
         return jsonify({"error": "Invalid payment status."}), 400
 
+    previous = db.execute("SELECT status FROM orders WHERE id = ?", (order_id,)).fetchone()
+    if previous is None:
+        return jsonify({"error": "Order not found."}), 404
+
     updates, params = [], []
     if status:
         updates.append("status = ?")
         params.append(status)
+        # Cancelling puts the items back on the shelf (only once — the
+        # previous-status check stops a double restore).
+        if status == "cancelled" and previous["status"] != "cancelled":
+            import json
+
+            row = db.execute("SELECT items FROM orders WHERE id = ?", (order_id,)).fetchone()
+            for item in json.loads(row["items"] or "[]"):
+                try:
+                    qty = int(item.get("quantity") or 0)
+                    product_id = int(item.get("productId"))
+                except (TypeError, ValueError):
+                    continue
+                if qty > 0:
+                    db.execute(
+                        """
+                        UPDATE products
+                           SET quantity = quantity + ?, in_stock = 1
+                         WHERE id = ?
+                        """,
+                        (qty, product_id),
+                    )
     if payment_status:
         updates.append("payment_status = ?")
         params.append(payment_status)
@@ -343,6 +358,8 @@ def admin_put_settings():
             val = val
         elif key == "supportPhone":
             val = str(val).strip()[:40]
+        elif key in ("bankName", "bankAccountName", "bankAccountNumber"):
+            val = str(val).strip()[:80]
         elif key in ("freeShippingThreshold", "shippingFee"):
             try:
                 f = float(val)

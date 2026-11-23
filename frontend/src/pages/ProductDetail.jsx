@@ -101,15 +101,16 @@ export default function ProductDetail() {
   /></button>)}</div></div>{
     /* Details */
   }<div><h1 className="font-display text-4xl tracking-wide sm:text-5xl">{product.name.toUpperCase()}</h1>{
-    /* Rating */
-  }<div className="mt-3 flex items-center gap-2"><div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star
+    /* Rating — only shown when real reviews exist. Invented star ratings
+       would be misleading, so nothing is displayed while reviews = 0. */
+  }{product.reviews > 0 && <div className="mt-3 flex items-center gap-2"><div className="flex">{Array.from({ length: 5 }).map((_, i) => <Star
     key={i}
     className={cn(
       "h-4 w-4",
       i < Math.round(product.rating) ? "fill-accent text-accent" : "text-border"
     )}
   />)}</div><span className="text-xs text-muted-foreground">{product.rating.toFixed(1)} · {product.reviews} reviews
-                </span></div>{
+                </span></div>}{
     /* Price */
   }<div className="mt-4 flex items-baseline gap-3"><span className="text-2xl font-semibold">{formatPrice(product.price)}</span>{onSale && <span className="text-base text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>}</div><p className="mt-5 leading-relaxed text-muted-foreground">{product.description}</p>{
     /* Color pills */

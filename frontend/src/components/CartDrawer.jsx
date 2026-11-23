@@ -1,5 +1,6 @@
 "use strict";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import {
   Sheet,
@@ -24,6 +25,12 @@ export function CartDrawer() {
   } = useCart();
   const { formatPrice } = useCountry();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  /* Navigating (e.g. CHECKOUT) must take the drawer with it — otherwise it
+     stays parked over the page the customer just moved to. */
+  useEffect(() => {
+    closeCart();
+  }, [pathname, closeCart]);
   const goToShop = () => {
     closeCart();
     navigate("/shop");

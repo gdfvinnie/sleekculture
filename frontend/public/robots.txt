@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Admin and account screens are private; keep them out of search results.
+Disallow: /#/admin
+Disallow: /#/account
+Disallow: /api/
+
+Sitemap: https://gdfvinnie.github.io/sleekculture/sitemap.xml

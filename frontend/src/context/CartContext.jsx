@@ -1,6 +1,7 @@
 "use strict";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -12,23 +13,34 @@ const itemKey = (productId, size, color) => `${productId}__${size}__${color}`;
 export { itemKey };
 export function CartProvider({ children }) {
   const { toast } = useToast();
-  const [cart, setCart] = useState([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  useEffect(() => {
+  /* Read the saved bag in the state initializer rather than in an effect.
+     Reading in an effect raced the write effect below: on mount the write ran
+     with the still-empty state and wiped the saved bag (StrictMode's double
+     mount made it reliably lose the cart on refresh). */
+  const [cart, setCart] = useState(() => {
     try {
       const raw = localStorage.getItem("sleekculture-cart");
-      if (raw) setCart(JSON.parse(raw));
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (i) => i && i.productId && Number.isFinite(Number(i.price))
+          ).map((i) => ({ ...i, quantity: Math.max(1, Number(i.quantity) || 1) }))
+        : [];
     } catch {
+      return [];
     }
-  }, []);
+  });
+  const [isCartOpen, setIsCartOpen] = useState(false);
   useEffect(() => {
     try {
       localStorage.setItem("sleekculture-cart", JSON.stringify(cart));
     } catch {
     }
   }, [cart]);
-  const openCart = () => setIsCartOpen(true);
-  const closeCart = () => setIsCartOpen(false);
+  /* Stable identities: the drawer closes itself on navigation, and a new
+     function identity each render would slam it shut the moment it opened. */
+  const openCart = useCallback(() => setIsCartOpen(true), []);
+  const closeCart = useCallback(() => setIsCartOpen(false), []);
   const addToCart = ({
     product,
     size,

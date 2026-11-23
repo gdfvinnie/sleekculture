@@ -10,6 +10,7 @@ import { useCart } from "@/context/CartContext";
 import { useCountry } from "@/context/CountryContext";
 import { useAuth } from "@/context/AuthContext";
 import { useOrders } from "@/context/OrdersContext";
+import { api } from "@/lib/api";
 const PAYMENT_METHODS = [
   {
     value: "card",
@@ -43,7 +44,7 @@ function Field({ label, error, children }) {
 }
 export default function Checkout() {
   const { cart, cartTotal, clearCart } = useCart();
-  const { formatPrice } = useCountry();
+  const { formatPrice, country } = useCountry();
   const { user } = useAuth();
   const { placeOrder, verifyPayment } = useOrders();
   const { toast } = useToast();
@@ -55,6 +56,7 @@ export default function Checkout() {
     address: "",
     city: "",
     state: "",
+    country: country?.name ?? "Nigeria",
     postalCode: "",
     notes: "",
   });
@@ -62,10 +64,31 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [serverError, setServerError] = useState(null);
-  /* Fees are quoted in the same dollar amounts the catalog uses
-     (free shipping over $500). */
-  const shippingFee = cartTotal >= 500 ? 0 : 25;
+  /* Shipping comes from the store settings, so the banner, this summary and
+     the server-side charge can never disagree. */
+  const [config, setConfig] = useState(null);
+  const threshold = config?.freeShippingThreshold ?? 150;
+  const fee = config?.shippingFee ?? 25;
+  const shippingFee = threshold > 0 && cartTotal >= threshold ? 0 : fee;
   const total = cartTotal + shippingFee;
+  const cardAvailable = config ? config.paymentsConfigured : true;
+  const methods = cardAvailable
+    ? PAYMENT_METHODS
+    : PAYMENT_METHODS.filter((m) => m.value !== "card");
+  useEffect(() => {
+    api
+      .storeConfig()
+      .then((c) => {
+        setConfig(c);
+        /* Card payments need a connected provider; default to the method
+           that can actually be fulfilled. */
+        if (!c.paymentsConfigured) {
+          setPaymentMethod((current) => (current === "card" ? "bank_transfer" : current));
+        }
+      })
+      .catch(() => {
+      });
+  }, []);
   // If the customer session resolves after mount, prefill the email.
   useEffect(() => {
     if (user?.email) {
@@ -233,7 +256,12 @@ export default function Checkout() {
                   />
                 </Field>
                 <Field label="Country">
-                  <input className={inputClass} value="Nigeria" readOnly aria-label="Country" />
+                  <input
+                    className={inputClass}
+                    value={form.country || country?.name || "Nigeria"}
+                    readOnly
+                    aria-label="Country"
+                  />
                 </Field>
                 <Field label="Postal code (optional)" error={fieldErrors.postalCode}>
                   <input
@@ -258,7 +286,7 @@ export default function Checkout() {
             <div className="mt-6 border border-border p-6">
               <h2 className="font-display text-xl tracking-widest">PAYMENT</h2>
               <div className="mt-5 grid gap-3">
-                {PAYMENT_METHODS.map((m) => (
+                {methods.map((m) => (
                   <label
                     key={m.value}
                     className={
@@ -288,6 +316,12 @@ export default function Checkout() {
                   </label>
                 ))}
               </div>
+              {!cardAvailable && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Card payment is not connected yet. Pay by bank transfer or on
+                  delivery — we confirm your order as soon as payment lands.
+                </p>
+              )}
             </div>
             {/* Mobile summary + CTA (the aside order summary is desktop-only) */}
             <div className="mt-6 border border-border bg-secondary/40 p-6 lg:hidden">

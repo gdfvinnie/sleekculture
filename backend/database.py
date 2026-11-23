@@ -120,7 +120,46 @@ SCHEMA = """
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 """
+
+
+# ----------------------------------------------------------------------
+# Store settings — shipping is quoted from here so the banner, the cart,
+# the checkout summary and the server-side total can never disagree.
+# ----------------------------------------------------------------------
+
+DEFAULT_SETTINGS = {
+    "storeName": "sleekculture",
+    "supportEmail": "jnrvinnie@gmail.com",
+    "supportPhone": "+234 8169282171",
+    "freeShippingThreshold": 150,
+    "shippingFee": 25,
+    # Bank-transfer details shown to the customer after checkout. Empty until
+    # the owner fills them in (Admin → Settings), so nothing is invented.
+    "bankName": "",
+    "bankAccountName": "",
+    "bankAccountNumber": "",
+}
+
+
+def load_settings(db) -> dict:
+    """Stored settings merged over the defaults (JSON values decoded)."""
+    rows = db.execute("SELECT key, value FROM admin_settings").fetchall()
+    stored = {r["key"]: r["value"] for r in rows}
+    out = dict(DEFAULT_SETTINGS)
+    for key in out:
+        if key in stored:
+            try:
+                out[key] = json.loads(stored[key])
+            except (ValueError, TypeError):
+                out[key] = stored[key]
+    return out
 
 
 def hash_password(password: str) -> str:
@@ -145,6 +184,18 @@ def init_db():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(SCHEMA)
+
+    # --- Lightweight migrations for databases created by older builds. ---
+    order_columns = {r["name"] for r in conn.execute("PRAGMA table_info(orders)")}
+    if "paystack_reference" not in order_columns:
+        conn.execute("ALTER TABLE orders ADD COLUMN paystack_reference TEXT")
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_paystack_ref
+            ON orders(paystack_reference)
+         WHERE paystack_reference IS NOT NULL
+        """
+    )
 
     # --- Seed the initial admin account from environment variables. ---
     email = (os.environ.get("ADMIN_EMAIL") or "jnrvinnie@gmail.com").strip().lower()
