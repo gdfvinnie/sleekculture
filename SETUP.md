@@ -38,17 +38,18 @@ python backend/app.py                         # one server on :3001 serving ever
 
 ### Admin login
 
-The store owner account is already configured:
-
 | | |
 |---|---|
 | URL | `/#/admin` |
-| Email | `jnrvinnie@gmail.com` |
-| Password | the `ADMIN_PASSWORD` value in `.env` (defaults are built in) |
+| Email | the `ADMIN_EMAIL` value you set |
+| Password | the `ADMIN_PASSWORD` value you set |
 
-The backend seeds this account on first boot and only reads
-`ADMIN_EMAIL` / `ADMIN_PASSWORD` when the account does not exist yet. To change
-the password of an existing install (including a live server), run:
+The backend seeds the admin on first boot from `ADMIN_EMAIL` / `ADMIN_PASSWORD`
+in `.env` (or the host's environment panel) and only when that account does not
+exist yet. No default password ships with the source: if you set an email but
+leave the password blank, a random one is generated and printed once in the
+server log. To change the password of an existing install (including a live
+server), run:
 
 ```bash
 python scripts/reset-admin-password.py                                   # uses .env
