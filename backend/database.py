@@ -198,15 +198,36 @@ def init_db():
     )
 
     # --- Seed the initial admin account from environment variables. ---
-    email = (os.environ.get("ADMIN_EMAIL") or "jnrvinnie@gmail.com").strip().lower()
-    password = os.environ.get("ADMIN_PASSWORD") or "Danielalice11"
-    exists = conn.execute("SELECT id FROM admin_users WHERE email = ?", (email,)).fetchone()
-    if not exists:
+    # Never ship a default password in the source: anyone reading the repo
+    # could sign in to the live dashboard. Set ADMIN_EMAIL/ADMIN_PASSWORD in
+    # .env (or the host's env panel) before the first boot. With no password
+    # we generate a random one and print it once to the server log.
+    email = (os.environ.get("ADMIN_EMAIL") or "").strip().lower()
+    password = os.environ.get("ADMIN_PASSWORD") or ""
+    exists = conn.execute("SELECT id FROM admin_users WHERE email = ?", (email,)).fetchone() if email else None
+    if not exists and email and password:
         conn.execute(
             "INSERT INTO admin_users (email, password_hash, role) VALUES (?, ?, 'admin')",
             (email, hash_password(password)),
         )
         print(f"[db] seeded admin user: {email}")
+    elif not exists and email:
+        import secrets
+        generated = secrets.token_urlsafe(12)
+        conn.execute(
+            "INSERT INTO admin_users (email, password_hash, role) VALUES (?, ?, 'admin')",
+            (email, hash_password(generated)),
+        )
+        print(
+            "[db] ADMIN_PASSWORD was not set — generated a one-time admin password "
+            f"for {email}: {generated}\n"
+            "[db] Store it somewhere safe, then change it in the dashboard."
+        )
+    elif not exists:
+        print(
+            "[db] No admin account yet. Set ADMIN_EMAIL and ADMIN_PASSWORD in .env "
+            "(or run scripts/reset-admin-password.py), then restart."
+        )
 
     # --- Seed the catalog on first run only. ---
     count = conn.execute("SELECT COUNT(*) AS n FROM products").fetchone()["n"]
