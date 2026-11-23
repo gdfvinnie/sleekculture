@@ -133,6 +133,34 @@ survive restarts, reloads, and deploys. No volume configuration needed.
 
 ---
 
+## Part B2 — Render (fastest route to a working `/#/admin`)
+
+GitHub Pages hosts only the static storefront, so the admin panel has no API
+there. Render runs the whole thing — storefront, API and admin — on one URL.
+
+1. Render dashboard → **New → Blueprint** → connect the `sleekculture` repo.
+   Render reads `render.yaml` from the repo root.
+2. It asks for **`ADMIN_PASSWORD`** (the file deliberately doesn't store it).
+   Enter the password you want for `jnrvinnie@gmail.com`.
+3. Click **Apply**. First build takes ~5 minutes.
+4. Open `https://<service-name>.onrender.com` → the storefront.
+   Admin login: `https://<service-name>.onrender.com/#/admin`
+
+What `render.yaml` sets up: Docker build (frontend + backend in one image),
+a 1 GB persistent disk mounted at `/app/data` (SQLite database, orders, image
+uploads survive redeploys), `COOKIE_SECURE=1` for HTTPS cookies, and a health
+check on `/api/products`.
+
+> The blueprint uses `plan: starter` because Render's free instance type
+> cannot attach a disk — on a free instance your orders and admin account reset
+> on every restart. If you only need a demo, change `plan` to `free`.
+
+Custom domain on Render: Settings → **Custom Domains** → add the domain, then
+create the `CNAME`/`A` records Render shows you. Unlike GitHub Pages, the site
+keeps working while DNS propagates.
+
+---
+
 ## Part C — Docker / VPS / Railway
 
 ```bash

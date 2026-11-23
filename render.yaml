@@ -1,0 +1,32 @@
+# Render blueprint — one-click full-stack deploy of sleekculture.
+#
+# Render dashboard → New → Blueprint → connect this repo. It reads this file:
+#   * builds the Dockerfile (frontend build + Python runtime)
+#   * mounts a persistent disk at /app/data so the SQLite database,
+#     orders and uploaded images survive redeploys
+#   * serves the whole site (storefront + API + /#/admin) on one HTTPS URL
+#
+# ADMIN_PASSWORD is marked `sync: false`: Render asks you for it once in the
+# dashboard instead of storing it in the repo. Use your own password there.
+services:
+  - type: web
+    name: sleekculture
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /api/products
+    autoDeploy: true
+    envVars:
+      - key: DATA_DIR
+        value: /app/data
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: ADMIN_EMAIL
+        value: jnrvinnie@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: sleekculture-data
+      mountPath: /app/data
+      sizeGB: 1

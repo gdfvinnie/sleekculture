@@ -147,8 +147,8 @@ def init_db():
     conn.executescript(SCHEMA)
 
     # --- Seed the initial admin account from environment variables. ---
-    email = (os.environ.get("ADMIN_EMAIL") or "jnrvinnie@gmail.com").lower()
-    password = os.environ.get("ADMIN_PASSWORD") or "Vinnievinnie11"
+    email = (os.environ.get("ADMIN_EMAIL") or "jnrvinnie@gmail.com").strip().lower()
+    password = os.environ.get("ADMIN_PASSWORD") or "Danielalice11"
     exists = conn.execute("SELECT id FROM admin_users WHERE email = ?", (email,)).fetchone()
     if not exists:
         conn.execute(

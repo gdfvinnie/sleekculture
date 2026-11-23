@@ -36,6 +36,28 @@ cd .. && pip install -r backend/requirements.txt
 python backend/app.py                         # one server on :3001 serving everything
 ```
 
+### Admin login
+
+The store owner account is already configured:
+
+| | |
+|---|---|
+| URL | `/#/admin` |
+| Email | `jnrvinnie@gmail.com` |
+| Password | the `ADMIN_PASSWORD` value in `.env` (defaults are built in) |
+
+The backend seeds this account on first boot and only reads
+`ADMIN_EMAIL` / `ADMIN_PASSWORD` when the account does not exist yet. To change
+the password of an existing install (including a live server), run:
+
+```bash
+python scripts/reset-admin-password.py                                   # uses .env
+python scripts/reset-admin-password.py someone@example.com 'new-password' # explicit
+```
+
+You can also change it in the UI: Admin → Settings → Admin Account. Because the
+repository is public, change the password before giving the site real traffic.
+
 ---
 
 ## Option B — Static hosting (Netlify / Vercel / GitHub Pages)
