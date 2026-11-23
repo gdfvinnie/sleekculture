@@ -8,6 +8,13 @@ import {
   useRef,
   useState
 } from "react";
+import { isDemo } from "@/lib/api";
+
+/* Same sub-path-safe URL rule as the API layer (see lib/api.js). */
+function apiPath(path) {
+  return `${(import.meta.env.BASE_URL || "/").replace(/\/*$/, "")}${path}`;
+}
+
 const AuthContext = createContext(void 0);
 const localStorage = window.localStorage;
 const sessionStorage = window.sessionStorage;
@@ -26,7 +33,7 @@ export function AuthProvider({ children }) {
   }, []);
   async function refresh() {
     try {
-      const res = await fetch("/api/account/me", {
+      const res = await fetch(apiPath("/api/account/me"), {
         credentials: "include"
       });
       if (!res.ok) throw new Error("failed");
@@ -52,14 +59,22 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
-    refresh();
+    // Static demo builds have no account API — skip the doomed request so
+    // the console stays clean and the UI stops waiting immediately.
+    (async () => {
+      if (await isDemo()) {
+        setLoading(false);
+        return;
+      }
+      await refresh();
+    })();
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
   }, []);
   const signIn = useCallback(
     async (email, password, remember) => {
-      const res = await fetch("/api/account/login", {
+      const res = await fetch(apiPath("/api/account/login"), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -82,7 +97,7 @@ export function AuthProvider({ children }) {
   );
   const signUp = useCallback(
     async (email, password, name, remember) => {
-      const res = await fetch("/api/account/register", {
+      const res = await fetch(apiPath("/api/account/register"), {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -105,7 +120,7 @@ export function AuthProvider({ children }) {
   );
   const signOut = useCallback(async () => {
     try {
-      await fetch("/api/account/logout", {
+      await fetch(apiPath("/api/account/logout"), {
         method: "POST",
         credentials: "include"
       });
@@ -118,7 +133,7 @@ export function AuthProvider({ children }) {
   const attachUserToOrder = useCallback(async (order) => {
     if (!user || !order?.id) return;
     try {
-      await fetch(`/api/orders/${order.id}/attach`, {
+      await fetch(apiPath(`/api/orders/${order.id}/attach`), {
         method: "POST",
         credentials: "include"
       });

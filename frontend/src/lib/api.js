@@ -29,7 +29,7 @@ class ApiError extends Error {
 }
 
 async function request(path, init) {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     credentials: "same-origin",
     // send the httpOnly session cookie
     headers:
@@ -67,7 +67,7 @@ let backendProbe = null; // cached promise: null until first call
 function detectBackend() {
   backendProbe = (async () => {
     try {
-      const res = await fetch("/api/products", {
+      const res = await fetch(apiUrl("/api/products"), {
         credentials: "same-origin",
         // Short timeout — a demo storefront should not hang waiting.
         signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined,
@@ -95,6 +95,12 @@ const ORDERS_KEY = "sleekculture-demo-orders";
 function base() {
   // Works both at "/" and at "/<repo>/ " (GitHub Pages project sites).
   return (import.meta.env.BASE_URL || "/").replace(/\/*$/, "");
+}
+
+/* Absolute API URL that respects the deploy sub-path, so a backend served
+   from /<repo>/ keeps working on GitHub Pages-style hosting. */
+export function apiUrl(path) {
+  return `${base()}${path}`;
 }
 
 function demoProducts() {
