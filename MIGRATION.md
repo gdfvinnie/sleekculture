@@ -112,6 +112,9 @@ All of these run the **same** `frontend` → `dist` build. Pick one.
 - `render.yaml` blueprint or plain `docker build .` — the same process serves the storefront, the API and the admin panel on one HTTPS URL, with `/app/data` on a disk.
 - Add `SITE_URL` as a build arg/environment variable so the built HTML points at your domain.
 
+### Hosting.com (cPanel + Passenger, full stack)
+- Complete step-by-step: **[HOSTING-COM.md](HOSTING-COM.md)** — Setup Python App, `passenger_wsgi.py`, pip install, `.env`, AutoSSL, DNS.
+
 ### PythonAnywhere / cPanel / shared Python hosting (full stack)
 - Follow `DEPLOY.md` Part B: build `frontend/dist` locally, upload, point WSGI at `backend/wsgi.py`, then set `SITE_URL` for that build (`SITE_URL=https://yourdomain.com npm run build`).
 - Build with `BASE_PATH` unset and `SITE_URL` set to the final domain.
