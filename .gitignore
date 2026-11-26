@@ -10,6 +10,7 @@
 
 # Build artifact (regenerate with scripts/ + SETUP.md instructions)
 sleekculture-deploy.zip
+sleekculture-portable.zip
 
 # Python
 __pycache__/

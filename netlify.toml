@@ -13,6 +13,11 @@
   command = "npm run build"
   publish = "dist"
 
+# Public address used by canonical/og tags, robots.txt and sitemap.xml.
+# Set it in the Netlify UI (Site settings → Build & deploy → Environment) as
+# SITE_URL=https://yourdomain.com — a private value here would be committed.
+# Every other host uses the same variable; see MIGRATION.md.
+
 # Keep /api/* from being "helpfully" rewritten to the SPA by any user rule —
 # the storefront uses its absence to enable the safe demo fallback.
 [[redirects]]

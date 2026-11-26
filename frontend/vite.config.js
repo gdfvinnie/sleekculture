@@ -4,17 +4,37 @@ import { fileURLToPath } from "node:url";
 
 // Frontend build.
 //
-// Default base is "/" — correct for most hosts (Netlify, Vercel, Render,
-// PythonAnywhere, Netlify drop…).
+// Two settings make the same source deployable anywhere:
 //
-// GitHub Pages *project* sites serve the site from "/<repo-name>/". Build
-// with:
-//     BASE_PATH=/<repo-name> npm run build
-// so every asset URL matches. GitHub Actions does this automatically.
+//   BASE_PATH  Where the site is served FROM. Default "/". Use "/<repo-name>"
+//              for GitHub Pages project sites, or a sub-folder on any host.
+//
+//   SITE_URL   The public address of the site, used for canonical/SEO/social
+//              tags, robots.txt and sitemap.xml. Include the sub-path when the
+//              site is not at the domain root, e.g.
+//                  SITE_URL=https://sleekculture.ng
+//                  SITE_URL=https://user.github.io/repo
+//              It is baked in at build time — rebuild after a domain change.
+//              The default keeps the current GitHub Pages deployment working.
 //
 // Dev server: API calls (/api) are proxied to the Python backend on 3001.
+const SITE_URL = (process.env.SITE_URL || "https://gdfvinnie.github.io/sleekculture").replace(
+  /\/+$/,
+  ""
+);
+
+/** Replaces the __SITE_URL__ token in index.html with the configured address. */
+function siteUrlPlugin(siteUrl) {
+  return {
+    name: "sleekculture-site-url",
+    transformIndexHtml(html) {
+      return html.replaceAll("__SITE_URL__", siteUrl);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), siteUrlPlugin(SITE_URL)],
   // Vite's base must end with a slash: template tokens such as
   // %BASE_URL%sleekculture-logo.png would otherwise produce
   // "/repo" + "logo.png" => "/repologo.png" (broken favicon/og:image).

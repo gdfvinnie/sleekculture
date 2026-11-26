@@ -89,6 +89,10 @@ python backend/app.py          # one process serves everything on $PORT
 
 ## Deploying to Netlify / Vercel / GitHub Pages
 
+Moving the store to a new host or domain? See **[MIGRATION.md](MIGRATION.md)**
+for the build command, output directory, the full environment-variable table
+and per-platform recipes.
+
 See **[SETUP.md](SETUP.md)** for the full, per-platform guide. In short: the
 static build auto-detects the missing backend and runs in demo mode
 (browsing/cart/checkout work with a bundled catalog; admin & accounts are

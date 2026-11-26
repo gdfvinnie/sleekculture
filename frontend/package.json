@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node ../scripts/write-404.mjs",
+    "build": "vite build && node ../scripts/write-site-meta.mjs && node ../scripts/write-404.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

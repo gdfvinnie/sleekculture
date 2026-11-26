@@ -6,4 +6,4 @@ Disallow: /#/admin
 Disallow: /#/account
 Disallow: /api/
 
-Sitemap: https://gdfvinnie.github.io/sleekculture/sitemap.xml
+Sitemap: __SITE_URL__/sitemap.xml

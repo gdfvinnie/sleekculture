@@ -74,12 +74,14 @@ The frontend auto-detects that no backend exists and switches to **demo mode**:
 
 ### Netlify
 - **Repo import:** connect the repo; Netlify reads `netlify.toml` (builds `frontend`, publishes `frontend/dist`).
+- Set the build variable `SITE_URL=https://yourdomain.com` so canonical tags, robots and the sitemap point at your domain (see `MIGRATION.md`).
 - **Drag-and-drop:** build locally (`cd frontend && npm run build`), then drop the **`frontend/dist` folder** onto https://app.netlify.com/drop.
 
 ### Vercel
 1. Import the repo on vercel.com.
 2. **Root Directory:** `frontend` (Vercel reads `frontend/vercel.json`).
 3. Framework preset: Vite; it builds `npm run build` → `dist`.
+4. Add the environment variable `SITE_URL=https://yourdomain.com` and redeploy.
 
 ### GitHub Pages
 1. Push this repo to GitHub; keep the workflow file `.github/workflows/deploy-frontend.yml`.
@@ -87,13 +89,18 @@ The frontend auto-detects that no backend exists and switches to **demo mode**:
 3. Every push to `main` builds the frontend and publishes it.
 4. Deep links are converted on the fly (404.html → `/#/shop`), so shared links work.
 
-The workflow build is set up for a **custom domain** (site served from `/`), and
-`frontend/public/CNAME` pins the domain in the published artifact.
+The workflow builds for the `/<repo-name>/` project path (`BASE_PATH`) and sets
+`SITE_URL` to the Pages address automatically. There is no `CNAME` file in the
+repo — add one (or use Settings → Pages → Custom domain) only if you serve this
+site from a custom domain on Pages.
 
-#### Custom domain (`sleekculture.ng`)
+#### Custom domain on GitHub Pages
 
-Already configured in the repo. The only manual step is DNS, at the registrar
-holding the domain (hosting.com → your domain → **DNS / Manage DNS**):
+Not configured in the repo yet — it is a dashboard + DNS step. Optional; if you
+are moving to another host instead, follow `MIGRATION.md` rather than this
+section.
+
+At the registrar holding the domain (hosting.com → your domain → **DNS / Manage DNS**):
 
 1. **Delete any existing `A` or `CNAME` record on the apex (`@`)** that points at
    hosting.com's parking/website server — otherwise it wins over these.
